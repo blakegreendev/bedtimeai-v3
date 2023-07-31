@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/loader";
 import { UserAvatar } from "@/components/user-avatar";
+import { useAuth } from "@clerk/nextjs";
 import { Empty } from "@/components/ui/empty";
 import { useProModal } from "@/hooks/use-pro-modal";
 
@@ -34,7 +35,8 @@ import { Api } from "sst/node/api";
 const ConversationPage = () => {
   const router = useRouter();
   const proModal = useProModal();
-  const [messages, setMessages] = useState<ChatCompletionRequestMessage[]>([]);
+  const [story, setStory] = useState<string>("");
+  const { userId } = useAuth();
 
   const form = useForm<z.infer<typeof formPromptSchema>>({
     resolver: zodResolver(formPromptSchema),
@@ -48,16 +50,18 @@ const ConversationPage = () => {
 
   const onSubmit = async (values: z.infer<typeof formPromptSchema>) => {
     try {
-      const userMessage: ChatCompletionRequestMessage = {
-        role: "user",
-        content: values.name,
-      };
-      const newMessages = [...messages, userMessage];
+      const name = values.name;
+      const theme = values.theme;
 
-      const response = await axios.post(`${Api.api.url}/story`, {
-        messages: newMessages,
-      });
-      setMessages((current) => [...current, userMessage, response.data]);
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/story`,
+        {
+          userId,
+          name,
+          theme,
+        }
+      );
+      setStory(response.data.body);
 
       form.reset();
     } catch (error: any) {
@@ -148,24 +152,21 @@ const ConversationPage = () => {
               <Loader />
             </div>
           )}
-          {messages.length === 0 && !isLoading && (
+          {story.length === 0 && !isLoading && (
             <Empty label="No story yet..." />
           )}
           <div className="flex flex-col-reverse gap-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.content}
-                className={cn(
-                  "p-8 w-full flex items-start gap-x-8 rounded-lg",
-                  message.role === "user"
-                    ? "bg-white border border-black/10"
-                    : "bg-muted"
-                )}
-              >
-                {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
-                <p className="text-sm">{message.content}</p>
-              </div>
-            ))}
+            <div
+              key={story}
+              className={cn(
+                "p-8 w-full flex items-start gap-x-8 rounded-lg bg-white border border-black/10 bg-muted"
+              )}
+            >
+              <BotAvatar />
+              <p className="text-sm first-letter:float-left first-letter:mr-3 first-letter:text-7xl first-letter:font-bold first-letter:text-gray-900 first-line:uppercase first-line:tracking-widest">
+                {story}
+              </p>
+            </div>
           </div>
         </div>
       </div>
